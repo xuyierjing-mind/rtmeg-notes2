@@ -1,0 +1,61 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Start with a viewer, then build a safe rolling-window processor for power, frequency, and phase."><title>04 · MATLAB examples · MEGIN realtime guide</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="layout"><aside><div class="brand">MEGIN · REALTIME<small>FieldTrip implementation notes</small></div><p class="side-intro">A beginner-friendly field guide. MATLAB + FieldTrip first; Python is an optional later path.</p><nav><a class="" href="index.html"><span class="num">00</span><span>Start here</span></a><a class="" href="01-principle.html"><span class="num">01</span><span>How the system works</span></a><a class="" href="02-setup.html"><span class="num">02</span><span>Start streaming</span></a><a class="" href="03-latency.html"><span class="num">03</span><span>Timing & validation</span></a><a class="active" href="04-examples.html"><span class="num">04</span><span>MATLAB examples</span></a><a class="" href="05-closed-loop.html"><span class="num">05</span><span>Closed-loop roadmap</span></a><a class="" href="06-misc.html"><span class="num">06</span><span>Troubleshooting & references</span></a></nav><div class="side-foot">Working notes · verify local software versions and acquisition configuration before a session.</div></aside><main>
+<div class="eyebrow">Part 04 · Practical MATLAB examples</div><h1>From a viewer to online features</h1><p class="lede">Start by using FieldTrip's supplied examples. Then build your own processor in small steps. The examples below are templates: adapt channel labels, buffer host, and FieldTrip version to your installation.</p>
+<h2>Example A · Use the FieldTrip realtime signal viewer</h2><p>The viewer is a useful first check because it confirms that data can be read and displayed without writing your own acquisition client.</p>
+<pre><button class="copy" onclick="copyCode(this)">Copy</button><code>cfg = [];
+cfg.dataset = 'buffer://localhost:1972'; % or buffer://HOST:1972
+ft_realtime_signalviewer(cfg);</code></pre>
+<p class="small">The exact configuration options depend on the FieldTrip example and version. Use the linked official example as the source of truth for optional settings.</p>
+<h2>Example B · Online power estimate</h2><p>Once the signal viewer works, try FieldTrip's realtime power-estimation example. It demonstrates the pattern of continuously updating a feature from newly arriving data.</p>
+<pre><button class="copy" onclick="copyCode(this)">Copy</button><code>cfg = [];
+cfg.dataset = 'buffer://localhost:1972';
+% Add only the options documented for your FieldTrip version.
+ft_realtime_powerestimate(cfg);</code></pre>
+<h2>Example C · Your own minimal rolling processor</h2><p>This deliberately simple template reads newly arrived data and computes a rolling RMS value. It does not filter, reject artifacts, estimate phase, or send triggers. It is intended to teach the data-flow pattern.</p>
+<pre><button class="copy" onclick="copyCode(this)">Copy</button><code>ft_defaults;
+dataset = 'buffer://localhost:1972';
+
+hdr = ft_read_header(dataset);
+fs = hdr.Fs;
+nChans = hdr.nChans;
+
+lastSample = 0;
+windowSeconds = 1;
+windowSamples = round(windowSeconds * fs);
+
+while true
+    % Refresh the header to learn how many samples are available
+    hdr = ft_read_header(dataset);
+    newestSample = hdr.nSamples;
+
+    if newestSample > lastSample
+        % Read only the samples that have arrived since last iteration
+        newData = ft_read_data(dataset, ...
+            'begsample', lastSample + 1, ...
+            'endsample', newestSample);
+
+        lastSample = newestSample;
+
+        % Maintain a short rolling buffer for each channel
+        if ~exist('rollingData','var')
+            rollingData = zeros(nChans, 0);
+        end
+        rollingData = [rollingData, newData];
+
+        % Keep only the most recent window
+        if size(rollingData,2) > windowSamples
+            rollingData = rollingData(:, end-windowSamples+1:end);
+        end
+
+        % Example feature: RMS per channel (not band-limited power)
+        if size(rollingData,2) == windowSamples
+            rmsValue = sqrt(mean(rollingData.^2, 2));
+            % Update a display or save to an in-memory log here
+        end
+    else
+        pause(0.005); % short idle wait; tune after measuring update cadence
+    end
+end</code></pre>
+<div class="callout warn"><b>Before using this as an experiment loop:</b> add error handling, stop conditions, buffer reset/run handling, sample-gap checks, bounded memory, and logging. Avoid frequent plotting or disk writes inside the time-critical path. The example uses a simple polling pattern; the right poll interval should be chosen from measured data arrival behavior.</div>
+<h2>Recommended feature ladder</h2><table><tr><th>Feature</th><th>What it tells you</th><th>Complexity</th><th>Notes</th></tr><tr><td>RMS / amplitude</td><td>Signal size over a moving window.</td><td>Low</td><td>First check; not alpha power.</td></tr><tr><td>Band-limited power</td><td>Energy in a chosen frequency range.</td><td>Low–medium</td><td>Use causal filtering or a windowed spectral estimate; define window length.</td></tr><tr><td>Peak frequency</td><td>Dominant frequency within a band/window.</td><td>Medium</td><td>Needs enough data and stable oscillatory content.</td></tr><tr><td>Phase</td><td>Position in the oscillatory cycle.</td><td>Medium–high</td><td>Requires causal estimator, uncertainty and amplitude gating.</td></tr><tr><td>Network features</td><td>Coordination between regions.</td><td>High</td><td>Validate spatial filters, reference, and timing first.</td></tr></table>
+<h2>Good habits for MATLAB loops</h2><ul><li>Read only samples that have not yet been processed.</li><li>Track sample indices; do not rely only on wall-clock time.</li><li>Check for gaps, resets, or a new run before updating the state.</li><li>Preallocate arrays where possible and keep memory bounded.</li><li>Separate acquisition, processing, visualization, and output into clear functions.</li><li>Do not treat successful plotting as evidence of low latency.</li></ul>
+<div class="footer">Educational implementation notes, not a substitute for local MEGIN operator training. Always validate the complete setup with recorded test signals before collecting participant data.</div></main></div><script src="assets/app.js"></script></body></html>

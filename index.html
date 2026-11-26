@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="A practical route from MEGIN acquisition to online monitoring, then to a validated closed-loop experiment."><title>00 · Start here · MEGIN realtime guide</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="layout"><aside><div class="brand">MEGIN · REALTIME<small>FieldTrip implementation notes</small></div><p class="side-intro">A beginner-friendly field guide. MATLAB + FieldTrip first; Python is an optional later path.</p><nav><a class="active" href="index.html"><span class="num">00</span><span>Start here</span></a><a class="" href="01-principle.html"><span class="num">01</span><span>How the system works</span></a><a class="" href="02-setup.html"><span class="num">02</span><span>Start streaming</span></a><a class="" href="03-latency.html"><span class="num">03</span><span>Timing & validation</span></a><a class="" href="04-examples.html"><span class="num">04</span><span>MATLAB examples</span></a><a class="" href="05-closed-loop.html"><span class="num">05</span><span>Closed-loop roadmap</span></a><a class="" href="06-misc.html"><span class="num">06</span><span>Troubleshooting & references</span></a></nav><div class="side-foot">Working notes · verify local software versions and acquisition configuration before a session.</div></aside><main>
+<div class="eyebrow">A practical implementation guide</div><h1>Real-time MEG processing with MEGIN + FieldTrip</h1>
+<p class="lede">A step-by-step notebook for getting data out of the MEGIN acquisition system, reading it safely in MATLAB, monitoring useful signal features, and eventually building a validated closed-loop experiment.</p>
+<div class="meta"><span class="pill">Beginner first</span><span class="pill">MATLAB + FieldTrip</span><span class="pill">MEGIN / Neuromag</span><span class="pill">Python later, if useful</span></div>
+<div class="callout"><b>Recommended starting point.</b> Do not begin with online phase estimation. First make the stream stable, confirm channel names and events, and monitor simple quantities such as signal amplitude, alpha-band power, and data quality. Phase estimation is one optional application of the same pipeline.</div>
+<h2>The overall data path</h2>
+<div class="diagram"><div class="node">MEGIN<br>Acquisition</div><div class="arrow">→</div><div class="node">MEGIN bridge<br><code>neuromag2ft</code></div><div class="arrow">→</div><div class="node">FieldTrip<br>buffer :1972</div></div>
+<div class="diagram"><div class="node">MATLAB client<br>read data</div><div class="arrow">→</div><div class="node">Online analysis<br>power · frequency · phase</div><div class="arrow">→</div><div class="node">Optional output<br>trigger / display</div></div>
+<p class="small">The bridge and buffer may run on the acquisition computer; MATLAB can run on a separate analysis computer on the same network. Keep the acquisition workstation as lightly loaded as possible.</p>
+<h2>Suggested learning path</h2>
+<div class="grid">
+<div class="card"><h3>01 · Understand the buffer</h3><p>Learn what a header, sample block, and event mean. You do not need to learn the low-level network protocol to use MATLAB.</p><a href="01-principle.html">Explore the principle →</a></div>
+<div class="card"><h3>02 · Start a stream</h3><p>Start the MEGIN bridge, press Go in Acquisition, and confirm MATLAB can see incoming samples.</p><a href="02-setup.html">Follow the setup →</a></div>
+<div class="card"><h3>03 · Measure timing</h3><p>Measure the delay and its variability. A mean delay alone is not enough for a closed-loop experiment.</p><a href="03-latency.html">Learn timing validation →</a></div>
+<div class="card"><h3>04 · Run examples</h3><p>Use FieldTrip examples, then build a minimal rolling-window MATLAB processor.</p><a href="04-examples.html">Open code examples →</a></div>
+</div>
+<h2>What to build first</h2>
+<table><tr><th>Stage</th><th>Goal</th><th>Pass condition</th></tr>
+<tr><td>1. Connectivity</td><td>MATLAB reads the buffer header and new data.</td><td>Correct sampling rate, channel count, and steadily increasing sample count.</td></tr>
+<tr><td>2. Monitoring</td><td>Plot a few channels and inspect events.</td><td>No unexplained gaps, frozen stream, or channel mix-up.</td></tr>
+<tr><td>3. Online features</td><td>Calculate rolling RMS / band power / frequency.</td><td>Online results agree with offline analysis within a defined tolerance.</td></tr>
+<tr><td>4. Timing validation</td><td>Measure data and output delays with recorded signals.</td><td>Mean, spread, and outliers are quantified.</td></tr>
+<tr><td>5. Closed loop</td><td>Trigger a harmless test output at a predicted phase or condition.</td><td>Independent offline verification confirms actual onset timing.</td></tr></table>
+<h2>Important MEGIN compatibility note</h2>
+<div class="callout warn"><b>Do not assume every MEGIN installation uses the same bridge.</b> FieldTrip's current Neuromag page notes issues with <code>neuromag2ft</code> on some TRIUX neo systems after DACQ software changes, and recommends an LSL-based interface for those configurations. Your local operator manual documents a legacy <code>neuromag2ft</code> workflow. Treat that as installation-specific and confirm the exact system model, DACQ version, bridge binary, and local support status before relying on it.</div>
+<h2>Quick preparation checklist</h2>
+<div class="progress"><span></span></div><p id="progress-label" class="small"></p><div class="checklist">
+<label><input type="checkbox"> I know which computer runs MEGIN Acquisition and which computer runs MATLAB.</label>
+<label><input type="checkbox"> I have confirmed the MEGIN model and acquisition software version.</label>
+<label><input type="checkbox"> I have the compatible FieldTrip release and MATLAB path configured.</label>
+<label><input type="checkbox"> I know the buffer host name / IP address and port.</label>
+<label><input type="checkbox"> I have permission to run a short test acquisition and record a test file.</label>
+<label><input type="checkbox"> I have identified the channels carrying MEG, auxiliary signals, and triggers.</label>
+</div>
+<div class="footer">Educational implementation notes, not a substitute for local MEGIN operator training. Always validate the complete setup with recorded test signals before collecting participant data.</div></main></div><script src="assets/app.js"></script></body></html>

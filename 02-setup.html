@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="A beginner workflow for MEGIN acquisition, neuromag2ft, the buffer, and MATLAB."><title>02 · Start streaming · MEGIN realtime guide</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="layout"><aside><div class="brand">MEGIN · REALTIME<small>FieldTrip implementation notes</small></div><p class="side-intro">A beginner-friendly field guide. MATLAB + FieldTrip first; Python is an optional later path.</p><nav><a class="" href="index.html"><span class="num">00</span><span>Start here</span></a><a class="" href="01-principle.html"><span class="num">01</span><span>How the system works</span></a><a class="active" href="02-setup.html"><span class="num">02</span><span>Start streaming</span></a><a class="" href="03-latency.html"><span class="num">03</span><span>Timing & validation</span></a><a class="" href="04-examples.html"><span class="num">04</span><span>MATLAB examples</span></a><a class="" href="05-closed-loop.html"><span class="num">05</span><span>Closed-loop roadmap</span></a><a class="" href="06-misc.html"><span class="num">06</span><span>Troubleshooting & references</span></a></nav><div class="side-foot">Working notes · verify local software versions and acquisition configuration before a session.</div></aside><main>
+<div class="eyebrow">Part 02 · Getting started</div><h1>Start real-time streaming from MEGIN</h1><p class="lede">The first milestone is simple: start the bridge, start acquisition, and verify that MATLAB can read a growing stream. Do not add filtering or phase estimation until this works reliably.</p>
+<div class="callout warn"><b>Version check before proceeding.</b> Your uploaded operator note describes <code>neuromag2ft --chunksize 30</code>. FieldTrip's current MEGIN documentation warns that this interface has compatibility issues on some TRIUX neo + newer DACQ combinations and points to an LSL-based alternative. Ask the local MEG operator which route is supported on your actual installation.</div>
+<h2>Roles of the computers</h2><table><tr><th>Computer</th><th>What runs there</th><th>Keep in mind</th></tr><tr><td>MEGIN acquisition workstation</td><td>MEGIN Acquisition and the approved MEGIN-to-buffer bridge.</td><td>Avoid running heavy MATLAB analysis here unless your lab specifically validates it.</td></tr><tr><td>Analysis / stimulus computer</td><td>MATLAB + FieldTrip; later Psychtoolbox or Python.</td><td>Connect to the buffer over the network. Check firewall and network access.</td></tr></table>
+<h2>Legacy operator-note procedure (confirm locally)</h2><div class="steps">
+<div class="step">Open the terminal in the directory containing the approved <code>neuromag2ft</code> executable.</div>
+<div class="step">Start the bridge. The local operator note gives this example:</div></div>
+<pre><button class="copy" onclick="copyCode(this)">Copy</button><code>./neuromag2ft --chunksize 30</code></pre>
+<p>The note was written for a 1000 Hz sampling rate and describes 30 samples as approximately 30 ms. It also says not to set the chunk size below 28 for that installation. This is a local, historical operating instruction—not a universal setting for all MEGIN systems or current bridge versions.</p>
+<div class="callout"><b>Chunk size in plain language:</b> it is how many samples are sent together in one update. Smaller chunks can reduce waiting time, but may increase system load. The actual achievable update interval is also constrained by the MEGIN acquisition path and packetization. Do not force an arbitrarily small number; measure it.</div>
+<div class="steps"><div class="step">In MEGIN Acquisition, press <b>Go</b> to start acquisition. In the local note, this is when the stream begins to be written to the buffer.</div><div class="step">On the analysis computer, run the MATLAB connection test below.</div><div class="step">At the end of a run, stop acquisition and follow the operator's local procedure for stopping or restarting the bridge. The operator note recommends restarting between runs for its legacy setup.</div></div>
+<h2>MATLAB: first connection test</h2><p>Start MATLAB, add FieldTrip to the path, and initialize it once per MATLAB session.</p>
+<pre><button class="copy" onclick="copyCode(this)">Copy</button><code>addpath('C:/toolboxes/fieldtrip');  % change to your FieldTrip folder
+ft_defaults;
+
+dataset = 'buffer://localhost:1972'; % replace host if remote
+hdr = ft_read_header(dataset);
+
+disp(hdr.Fs)          % sampling frequency
+disp(hdr.nChans)      % number of channels
+disp(hdr.label(1:10)) % inspect some channel labels</code></pre>
+<p>If the buffer is on another computer, use e.g. <code>buffer://meg-acq-pc:1972</code>. The host name and port must match the bridge configuration.</p>
+<h2>Read the latest data</h2>
+<pre><button class="copy" onclick="copyCode(this)">Copy</button><code>% Ask how many samples have arrived
+hdr = ft_read_header(dataset);
+lastSample = hdr.nSamples;
+
+% Read a short recent segment (example: last 1 second)
+nRecent = round(hdr.Fs);
+begsample = max(1, lastSample - nRecent + 1);
+endsample = lastSample;
+
+dat = ft_read_data(dataset, ...
+    'begsample', begsample, ...
+    'endsample', endsample);
+
+size(dat)  % channels x samples</code></pre>
+<div class="callout warn"><b>Important:</b> this is a one-time read example, not a continuous real-time loop. In a loop, track the last sample already processed and request only samples after it. Also check that the buffer has enough samples before requesting a block.</div>
+<h2>What success looks like</h2><ul><li>The header returns without an error.</li><li>The sampling rate and channel labels match the expected acquisition setup.</li><li>The latest sample count increases while acquisition is running.</li><li>Repeated reads return new data rather than the same block.</li><li>Events can be read when triggers are being generated.</li></ul>
+<div class="footer">Educational implementation notes, not a substitute for local MEGIN operator training. Always validate the complete setup with recorded test signals before collecting participant data.</div></main></div><script src="assets/app.js"></script></body></html>
